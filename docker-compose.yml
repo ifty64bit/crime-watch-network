@@ -1,0 +1,73 @@
+services:
+
+  # ─────────────────────────────────────────────
+  # dispatcher — RabbitMQ message broker
+  # Management UI → http://localhost:15672
+  # ─────────────────────────────────────────────
+  dispatcher:
+    build:
+      context: ./dispatcher
+      dockerfile: Dockerfile
+    container_name: cwn-dispatcher
+    environment:
+      RABBITMQ_DEFAULT_USER: dispatch
+      RABBITMQ_DEFAULT_PASS: toor
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - dispatcher-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # field-agent — crime news scraper (Bun)
+  # ─────────────────────────────────────────────
+  field-agent:
+    build:
+      context: ./field-agent
+      dockerfile: Dockerfile
+    container_name: cwn-field-agent
+    # dev: mount source so file changes reflect instantly
+    volumes:
+      - ./field-agent:/app
+      - /app/node_modules  # keep container's node_modules, don't overwrite with host
+    command: bun --watch index.ts
+    environment:
+      RABBITMQ_URL: amqp://dispatch:toor@dispatcher:5672
+    depends_on:
+      dispatcher:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # detectives — crime news consumer (Bun)
+  # ─────────────────────────────────────────────
+  detectives:
+    build:
+      context: ./detectives
+      dockerfile: Dockerfile
+    container_name: cwn-detectives
+    # dev: mount source so file changes reflect instantly
+    volumes:
+      - ./detectives:/app
+      - /app/node_modules  # keep container's node_modules, don't overwrite with host
+    command: bun --watch index.ts
+    environment:
+      RABBITMQ_URL: amqp://dispatch:toor@dispatcher:5672
+    depends_on:
+      dispatcher:
+        condition: service_healthy
+    restart: unless-stopped
+
+# ─────────────────────────────────────────────
+# named volume for RabbitMQ data persistence
+# ─────────────────────────────────────────────
+volumes:
+  dispatcher-data:

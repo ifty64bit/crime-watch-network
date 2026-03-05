@@ -10,12 +10,12 @@ FROM rabbitmq:4.2-management-alpine
 
 # ---- metadata ----
 LABEL maintainer="crime-watch-network"
-LABEL service="dispatch-radio"
+LABEL service="dispatcher"
 LABEL description="RabbitMQ message broker for inter-service communication"
 
 # ---- default environment (override at runtime / compose) ----
 ENV RABBITMQ_DEFAULT_USER=dispatch
-ENV RABBITMQ_DEFAULT_PASS=changeme
+ENV RABBITMQ_DEFAULT_PASS=toor
 ENV RABBITMQ_DEFAULT_VHOST=/
 
 # ---- ports ----
@@ -23,10 +23,6 @@ ENV RABBITMQ_DEFAULT_VHOST=/
 # 15672 → Management UI  (http://localhost:15672)
 EXPOSE 5672 15672
 
-# ---- healthcheck ----
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD rabbitmq-diagnostics -q check_running && \
-      rabbitmq-diagnostics -q check_local_alarms
 
 # ---- entrypoint (inherited from base image) ----
 # The official image already sets the correct ENTRYPOINT and CMD,
